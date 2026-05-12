@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Lead {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  company       String?
+  source        String   @default("manual") // manual, website, referral, linkedin, cold-outreach
+  status        String   @default("new") // new, contacted, qualified, proposal, negotiation, won, lost
+  score         Int      @default(0)
+  estimatedValue Float   @default(0)
+  notes         String?
+  lastContactAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deals         Deal[]
+  callLogs      CallLog[]
+  contactAttempts ContactAttempt[]
+}
+
+model Deal {
+  id            String   @id @default(cuid())
+  title         String
+  value         Float
+  status        String   @default("pipeline") // pipeline, negotiation, closed-won, closed-lost
+  probability   Int      @default(50)
+  expectedClose DateTime?
+  leadId        String
+  lead          Lead     @relation(fields: [leadId], references: [id])
+  payments      Payment[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CallLog {
+  id            String   @id @default(cuid())
+  leadId        String
+  lead          Lead     @relation(fields: [leadId], references: [id])
+  agentId       String?
+  agent         Agent?   @relation(fields: [agentId], references: [id])
+  outcome       String?  // no-answer, busy, voicemail, interested, not-interested, callback, qualified
+  duration      Int      @default(0) // seconds
+  recording     String?
+  transcript    String?
+  summary       String?
+  createdAt     DateTime @default(now())
+}
+
+model Agent {
+  id            String   @id @default(cuid())
+  name          String
+  type          String   @default("calling") // calling, fulfillment
+  status        String   @default("available") // available, busy, offline
+  vapiAgentId   String?  // Vapi.ai agent ID
+  speciality    String?
+  totalCalls    Int      @default(0)
+  successRate   Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  callLogs      CallLog[]
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  dealId        String
+  deal          Deal     @relation(fields: [dealId], references: [id])
+  amount        Float
+  status        String   @default("pending") // pending, completed, failed, refunded
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Setting {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  value         String
+  updatedAt     DateTime @updatedAt
+}
+
+model ContactAttempt {
+  id            String   @id @default(cuid())
+  leadId        String
+  lead          Lead     @relation(fields: [leadId], references: [id])
+  method        String   @default("call") // call, email, sms, linkedin
+  status        String   @default("pending") // pending, completed, failed
+  notes         String?
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+}
